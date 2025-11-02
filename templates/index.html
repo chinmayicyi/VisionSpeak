@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>VisionSpeak - Web Stream</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #282c34;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+        }
+        h1 {
+            color: #61afef;
+        }
+        img {
+            border: 5px solid #61afef;
+            border-radius: 8px;
+            background-color: #000;
+        }
+    </style>
+</head>
+<body>
+    <h1>VisionSpeak Live Detection</h1>
+    
+    <img src="{{ url_for('video_feed') }}" width="1280" height="720">
+    
+</body>
+</html>
