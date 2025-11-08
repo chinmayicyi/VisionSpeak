@@ -1,8 +1,8 @@
 # VisionSpeak Detector
 
-VisionSpeak is a real-time object detection application that provides live audio narration for a webcam feed. It uses a webcam to "see" the world, identifies objects in the frame, and speaks what it finds using a natural-language description.
+VisionSpeak is a real-time object detection application that provides live audio narration. It uses a webcam to "see" the world, identifies objects in the frame, and speaks what it finds using a natural-language description.
 
-This project uses YOLO (You Only Look Once) for state-of-the-art object detection, OpenCV for video processing, and pyttsx3 for text-to-speech narration.
+This project uses YOLO (You Only Look Once) for state-of-the-art object detection, OpenCV for video processing, and pyttsx3 for text-to-speech narration, all wrapped in a simple desktop application.
 
 ## 🚀 Key Features
 
@@ -11,11 +11,10 @@ This project uses YOLO (You Only Look Once) for state-of-the-art object detectio
 * **Multi-Model Engine:** Uses multiple YOLO models (`yolov8s.pt` and `yolov8m.pt`) to combine general-purpose and detailed detection for better accuracy.
 * **Smart Filtering:**
     * **Stability Filter:** Reduces "flickering" by only announcing objects that are stable for several frames.
-    * **Duplicate Removal:**Intelligently merges overlapping detections of the same object.
+    * **Duplicate Removal:** Intelligently merges overlapping detections of the same object.
     * **Smart Correction:** Corrects common misdetections (e.g., a small, low-confidence "donut" is corrected to "round object").
 * **Intelligent Narration:**
     * Prioritizes announcing *changes* in the scene (new objects appearing, objects disappearing).
-    * Detects and announces object *movement*.
     * Provides periodic updates even if the scene is static.
 
 ## 🔧 Getting Started
@@ -48,56 +47,26 @@ Follow these instructions to get a copy of the project up and running on your lo
     ```
 
 3.  **Install the required libraries:**
-    The `ultralytics` package will automatically install PyTorch and other core dependencies.
     ```bash
     pip install -r requirements.txt
     ```
-    *(If your `requirements.txt` is missing `ultralytics`, install it manually)*
-    ```bash
-    pip install ultralytics opencv-python pyttsx3 numpy
-    ```
+    *Note: The YOLO `.pt` model files will be downloaded automatically by the application the first time you run it.*
 
 ## 🏃‍♂️ How to Run
 
-There are several ways to run the application. The simplest is to run the main standalone script.
+This project runs as a simple desktop application.
 
-### Standalone Mode (Recommended)
+1.  Ensure you have installed the requirements (see "Installation" above).
+2.  Run the main application file from your terminal:
 
-Run the `wtf.py` (or `works.py`) script directly from your terminal. This will open a new window showing your webcam feed with detection boxes.
-
-```bash
-python wtf.py
-```
-
-**Keyboard Controls (while the video window is active):**
-
-* `q` - Quit the application
-* `s` - Force speak the current scene immediately
-* `r` - Reset tracking and force immediate narration
-* `c` - Cycle through different confidence thresholds
-* `SPACE` - Pause or resume live narration
-* `h` - Toggle the help display on/off
-
-### Web Application Mode
-
-This project also includes a version that runs as a web server, allowing you to view the video stream from any device on your network.
-
-1.  **Install web dependencies:**
     ```bash
-    pip install Flask Flask-Sock waitress
+    python app.py
     ```
-
-2.  **Run the web server:**
-    ```bash
-    python web_app.py
-    ```
-
-3.  **Open your browser** and go to `http://127.0.0.1:5000` or `http://[YOUR_IP_ADDRESS]:5000` to see the feed.
+3.  A window will appear. Click the **"Start Detection"** button to begin the webcam feed and narration.
 
 ## 🛠️ Core Technologies Used
 
 * [**Ultralytics YOLOv8**](https://ultralytics.com/): The core real-time object detection model.
 * [**OpenCV**](https://opencv.org/): Used for webcam capture, video processing, and drawing visuals.
 * [**pyttsx3**](https://pyttsx3.readthedocs.io/en/latest/): A text-to-speech library for offline audio narration.
-* [**Flask**](https://flask.palletsprojects.com/): (Optional) Used to create the web application and video stream.
-* [**Tkinter**](https://docs.python.org/3/library/tkinter.html): (Optional) Used in `app.py` for a simple desktop GUI.
+* [**Tkinter**](https://docs.python.org/3/library/tkinter.html): Used to create the simple desktop GUI.
