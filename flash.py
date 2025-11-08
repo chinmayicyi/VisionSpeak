@@ -7,7 +7,8 @@ from ultralytics import YOLO
 import numpy as np
 
 class MultiModelDetector:
-    def _init_(self):
+    # --- FIX: Changed _init_ to __init__ ---
+    def __init__(self):
         print("Loading multiple models for comprehensive detection...")
         
         # Load multiple models for different object types
@@ -40,7 +41,7 @@ class MultiModelDetector:
             print(f"TTS Error: {e}")
             self.engine = None
         
-        # New: Control flag for the run loop (from patch)
+        # New: Control flag for the run loop
         self.running = False
         
         # Detection settings
@@ -294,7 +295,6 @@ class MultiModelDetector:
     
     def run(self):
         """Main detection loop - now controlled by self.running"""
-        # This check is from the patch
         if not self.running:
             print("Detector is not set to run. Call start_detector() first.")
             return
@@ -304,7 +304,6 @@ class MultiModelDetector:
         
         show_model_info = True
         
-        # Loop is now controlled by self.running (from patch)
         while self.running:
             ret, frame = self.cap.read()
             if not ret:
@@ -359,7 +358,7 @@ class MultiModelDetector:
             # Handle keys
             key = cv2.waitKey(1) & 0xFF
             if key == ord('q'):
-                self.running = False  # Set flag to stop loop (from patch)
+                self.running = False  # Set flag to stop loop
                 break
             elif key == ord('s'):  # Force speak
                 if detections and not self.speaking:
@@ -373,7 +372,6 @@ class MultiModelDetector:
             elif key == ord('h'):  # Hide/show model info
                 show_model_info = not show_model_info
             
-            # Add a small sleep to yield control (from patch)
             time.sleep(0.01)
         
         self.cleanup()
@@ -384,6 +382,3 @@ class MultiModelDetector:
             self.cap.release()
         cv2.destroyAllWindows()
         print("Multi-model detector stopped.")
-
-# The if _name_ == "_main_": block has been removed as requested by the patch
-# This file is now ready to be imported by app.py

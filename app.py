@@ -7,12 +7,14 @@ import time
 from flash import MultiModelDetector 
 
 class DetectorApp:
-    def _init_(self, root):
+    # --- FIX: Changed _init_ to __init__ ---
+    def __init__(self, root):
         self.root = root
         root.title("VisionSpeak Detector")
         root.geometry("400x200")
         
         # Initialize your detector (Backend)
+        # This will now work correctly because __init__ is spelled right
         self.detector = MultiModelDetector()
         self.detection_thread = None
         
@@ -68,11 +70,8 @@ class DetectorApp:
             # 1. Gracefully stop the thread loop
             self.detector.running = False
             
-            # 2. Wait for the thread to finish (optional, but good practice)
-            # You might want a short timeout to prevent the GUI from freezing completely
             if self.detection_thread and self.detection_thread.is_alive():
                 print("Waiting for detection thread to join...")
-                # self.detection_thread.join(timeout=1) # Removed join to avoid main thread hang
                 pass
             
             # Reset UI after a small delay to allow cleanup to finish
@@ -98,7 +97,8 @@ class DetectorApp:
             self.root.after(0, self._reset_ui)
 
 
-if __name__ == "_main_":
+# --- FIX: Changed "_main_" to "__main__" ---
+if __name__ == "__main__":
     root = tk.Tk()
     app = DetectorApp(root)
     root.mainloop()
