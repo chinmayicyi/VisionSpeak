@@ -312,7 +312,9 @@ class MultiModelDetector:
                     if current_time - self.last_spoken_time > 1:
                         should_speak = True
             
-            if should_speak and detections:
+            # --- FIX APPLIED HERE ---
+            # Removed 'and detections' to allow "No objects detected" to be spoken
+            if should_speak:
                 # MERGED: Pass frame dimensions for positional audio
                 description = self.create_description(detections, frame_width, frame_height)
                 thread = threading.Thread(target=self.speak_text, args=(description,))
