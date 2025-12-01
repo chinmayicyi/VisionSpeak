@@ -10,8 +10,7 @@ import math
 class MultiModelDetector:
     def __init__(self, camera_index=0, display_queue=None):
         """
-        camera_index: webcam index
-        display_queue: thread-safe queue to send frames to main thread
+        Windows-compatible detector with TTS fix
         """
         print("Loading YOLO models...")
         
@@ -36,33 +35,24 @@ class MultiModelDetector:
         self.narration_paused = False
         self.display_queue = display_queue
 
-        # TTS engine with threading
+        # WINDOWS TTS FIX - Reinitialize engine for each speech
         self.tts_lock = Lock()
         self.speaking = False
-        try:
-            self.tts_engine = pyttsx3.init()
-            self.tts_engine.setProperty('rate', 150)
-            self.tts_engine.setProperty('volume', 0.9)
-            print("TTS engine initialized!")
-        except Exception as e:
-            print(f"TTS initialization error: {e}")
-            self.tts_engine = None
+        print("TTS will be initialized per-speech (Windows fix)")
 
         # Detection and narration state
         self.last_objects = set()
         self.last_narration_time = 0
-        self.narration_cooldown = 3.0  # seconds between narrations
-        self.min_change_interval = 2.5  # seconds for scene changes
-        self.periodic_interval = 12.0  # periodic updates
+        self.min_interval = 2.0  # Minimum seconds between narrations
+        self.periodic_interval = 6.0  # Periodic updates
         
         # Movement tracking
-        self.tracked_positions = {}  # {object_name: (x, y, timestamp)}
-        self.movement_threshold = 60  # pixels for significant movement
-        self.min_movement_interval = 2.0  # seconds between movement narrations
+        self.tracked_positions = {}
+        self.movement_threshold = 60
         
         # Detection settings
         self.confidence_threshold = 0.35
-        self.min_area = 2000  # minimum object area in pixels
+        self.min_area = 2000
 
     def _calculate_center(self, bbox):
         """Calculate center point of bounding box"""
@@ -80,32 +70,25 @@ class MultiModelDetector:
             center = self._calculate_center(det['bbox'])
             current_positions[name] = center
         
-        # Check for movement
         for name, (curr_x, curr_y) in current_positions.items():
             if name in self.tracked_positions:
                 prev_x, prev_y, last_time = self.tracked_positions[name]
                 
-                # Calculate distance moved
                 dx = curr_x - prev_x
                 dy = curr_y - prev_y
                 distance = math.sqrt(dx*dx + dy*dy)
                 
-                # Check if movement is significant
                 if distance > self.movement_threshold and (current_time - last_time) > 0.5:
-                    # Determine direction
-                    if abs(dx) > abs(dy):
-                        direction = "left" if dx < 0 else "right"
-                    else:
-                        direction = "up" if dy < 0 else "down"
+                    direction = "left" if abs(dx) > abs(dy) and dx < 0 else \
+                               "right" if abs(dx) > abs(dy) and dx > 0 else \
+                               "up" if dy < 0 else "down"
                     
                     movements.append(f"{name} moving {direction}")
                     print(f"🏃 Movement: {name} moved {distance:.0f}px {direction}")
         
-        # Update tracked positions
         for name, position in current_positions.items():
             self.tracked_positions[name] = (position[0], position[1], current_time)
         
-        # Clean up old positions
         for name in list(self.tracked_positions.keys()):
             if name not in current_positions:
                 del self.tracked_positions[name]
@@ -113,7 +96,7 @@ class MultiModelDetector:
         return movements
 
     def _detect_scene_changes(self, current_objects):
-        """Detect changes in scene (new or removed objects)"""
+        """Detect changes in scene"""
         new_objects = current_objects - self.last_objects
         removed_objects = self.last_objects - current_objects
         
@@ -131,8 +114,8 @@ class MultiModelDetector:
         return changes
 
     def _speak_async(self, text):
-        """Speak text in background thread without blocking"""
-        if not self.tts_engine or self.speaking or not text:
+        """WINDOWS FIX: Create new engine for each speech"""
+        if not text or self.speaking:
             return
         
         with self.tts_lock:
@@ -143,9 +126,22 @@ class MultiModelDetector:
         def speak_worker():
             try:
                 print(f"[🔊 Speaking]: {text}")
-                self.tts_engine.say(text)
-                self.tts_engine.runAndWait()
-                time.sleep(0.2)
+                
+                # WINDOWS FIX: Create fresh engine each time
+                engine = pyttsx3.init()
+                engine.setProperty('rate', 150)
+                engine.setProperty('volume', 0.9)
+                
+                # Speak
+                engine.say(text)
+                engine.runAndWait()
+                
+                # Clean up
+                engine.stop()
+                del engine
+                
+                time.sleep(0.3)
+                
             except Exception as e:
                 print(f"TTS Error: {e}")
             finally:
@@ -156,8 +152,8 @@ class MultiModelDetector:
         thread.start()
 
     def _should_narrate(self, detections):
-        """Determine if we should narrate based on multiple triggers"""
-        if self.narration_paused or self.speaking:
+        """Determine if we should narrate"""
+        if self.narration_paused:
             return False, None, []
         
         current_time = time.time()
@@ -167,25 +163,22 @@ class MultiModelDetector:
         
         # Priority 1: Movement detection
         movements = self._detect_movement(detections)
-        if movements and time_since_last > self.min_movement_interval:
+        if movements and time_since_last > self.min_interval:
             return True, "movement", movements
         
-        # Priority 2: Scene changes (new/removed objects)
+        # Priority 2: Scene changes
         scene_changes = self._detect_scene_changes(current_objects)
-        if scene_changes and time_since_last > self.min_change_interval:
-            self.last_objects = current_objects.copy()
+        if scene_changes and time_since_last > self.min_interval:
             return True, "scene_change", scene_changes
         
         # Priority 3: Periodic updates
         if detections and time_since_last > self.periodic_interval:
-            self.last_objects = current_objects.copy()
             return True, "periodic", None
         
         return False, None, []
 
     def _create_description(self, detections, special_events=None):
         """Create natural language description"""
-        # Priority for special events (movement/scene changes)
         if special_events:
             if len(special_events) == 1:
                 return special_events[0]
@@ -194,7 +187,6 @@ class MultiModelDetector:
             else:
                 return f"{', '.join(special_events[:-1])}, and {special_events[-1]}"
         
-        # Regular object description
         if not detections:
             return "No objects in view"
         
@@ -220,18 +212,16 @@ class MultiModelDetector:
             return f"I can see {len(detections)} objects including {parts[0]}, {parts[1]}, and others"
 
     def _remove_duplicates(self, detections):
-        """Remove duplicate detections from different models"""
+        """Remove duplicate detections"""
         if len(detections) <= 1:
             return detections
         
-        # Sort by confidence
         detections.sort(key=lambda x: x['confidence'], reverse=True)
         unique = []
         
         for det in detections:
             is_duplicate = False
             for existing in unique:
-                # Calculate IoU
                 overlap = self._calculate_iou(det['bbox'], existing['bbox'])
                 if overlap > 0.6 and det['name'] == existing['name']:
                     is_duplicate = True
@@ -243,7 +233,7 @@ class MultiModelDetector:
         return unique
 
     def _calculate_iou(self, bbox1, bbox2):
-        """Calculate Intersection over Union"""
+        """Calculate IoU"""
         x1, y1, x2, y2 = bbox1
         x3, y3, x4, y4 = bbox2
         
@@ -261,27 +251,24 @@ class MultiModelDetector:
         return intersection / union if union > 0 else 0
 
     def _draw_detections(self, frame, detections):
-        """Draw bounding boxes and labels on frame"""
+        """Draw bounding boxes and labels"""
         for det in detections:
             x1, y1, x2, y2 = det['bbox']
             name = det['name']
             conf = det['confidence']
             
-            # Color based on object type and confidence
             if name == 'person':
-                color = (0, 255, 0)  # Green for persons
+                color = (0, 255, 0)
             elif conf > 0.6:
-                color = (255, 0, 255)  # Magenta for high confidence
+                color = (255, 0, 255)
             elif conf > 0.4:
-                color = (0, 255, 255)  # Yellow for medium
+                color = (0, 255, 255)
             else:
-                color = (0, 165, 255)  # Orange for low
+                color = (0, 165, 255)
             
-            # Draw box
             thickness = 3 if conf > 0.6 else 2
             cv2.rectangle(frame, (x1, y1), (x2, y2), color, thickness)
             
-            # Draw label
             label = f"{name} {conf:.2f}"
             label_size = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2)[0]
             
@@ -290,15 +277,22 @@ class MultiModelDetector:
             cv2.putText(frame, label, (x1, y1 - 5),
                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 0), 2)
             
-            # Draw center point
             center_x, center_y = int((x1+x2)/2), int((y1+y2)/2)
             cv2.circle(frame, (center_x, center_y), 4, color, -1)
         
         return frame
 
     def run(self):
-        """Main detection loop (runs in worker thread)"""
-        print("🎥 Detection started!")
+        """Main detection loop"""
+        print("="*60)
+        print("🎥 Detection Started - Windows TTS Fix Applied")
+        print("="*60)
+        print("Will narrate:")
+        print("  ✅ Scene changes (every 2s)")
+        print("  ✅ Movement detected")
+        print("  ✅ Periodic updates (every 6s)")
+        print("="*60)
+        
         frame_count = 0
         
         while self.running:
@@ -308,9 +302,9 @@ class MultiModelDetector:
                 continue
             
             frame_count += 1
-            frame = cv2.flip(frame, 1)  # Mirror for better UX
+            frame = cv2.flip(frame, 1)
             
-            # Collect detections from all models
+            # Collect detections
             all_detections = []
             
             for model_name, model in self.models.items():
@@ -320,7 +314,7 @@ class MultiModelDetector:
                     for r in results:
                         boxes = r.boxes
                         if boxes is not None:
-                            for i, box in enumerate(boxes):
+                            for box in boxes:
                                 conf = box.conf[0].item()
                                 cls_id = int(box.cls[0].item())
                                 class_name = r.names[cls_id]
@@ -328,7 +322,6 @@ class MultiModelDetector:
                                 
                                 area = (x2 - x1) * (y2 - y1)
                                 
-                                # Filter by area
                                 if area < self.min_area:
                                     continue
                                 
@@ -348,7 +341,7 @@ class MultiModelDetector:
             # Remove duplicates
             unique_detections = self._remove_duplicates(all_detections)
             
-            # Draw detections on frame
+            # Draw detections
             annotated_frame = self._draw_detections(frame.copy(), unique_detections)
             
             # Add status overlay
@@ -374,10 +367,9 @@ class MultiModelDetector:
                 cv2.putText(annotated_frame, f"Detected: {obj_text}",
                            (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1)
             
-            # Send annotated frame to main thread
+            # Send frame
             if self.display_queue:
                 try:
-                    # Clear old frame if queue is full
                     if not self.display_queue.empty():
                         try:
                             self.display_queue.get_nowait()
@@ -387,17 +379,27 @@ class MultiModelDetector:
                 except queue.Full:
                     pass
             
-            # Check if we should narrate (only every few frames to reduce overhead)
+            # Check if we should narrate
             if frame_count % 3 == 0:
+                current_objects = set(det['name'] for det in unique_detections)
+                
+                # Debug info every second
+                if frame_count % 30 == 0:
+                    print(f"🔍 Current: {current_objects} | Last: {self.last_objects} | Time: {time_since_last:.1f}s | Speaking: {self.speaking}")
+                
                 should_speak, reason, special_events = self._should_narrate(unique_detections)
                 
                 if should_speak:
                     description = self._create_description(unique_detections, special_events)
                     self._speak_async(description)
                     self.last_narration_time = current_time
+                    
+                    # Update last_objects AFTER narrating
+                    self.last_objects = current_objects.copy()
+                    
                     print(f"🎯 Narrating ({reason}): {description}")
             
-            time.sleep(0.01)  # Small delay to prevent CPU overuse
+            time.sleep(0.01)
         
         # Cleanup
         print("Stopping detection...")
