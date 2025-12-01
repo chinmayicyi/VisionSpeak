@@ -1,253 +1,235 @@
-import tkinter as tk
-from tkinter import ttk, messagebox
-import threading
+from flask import Flask, render_template, Response, jsonify, request
+from flask_cors import CORS
 import cv2
-import queue
+import time
+import os
+from datetime import datetime
 from flash import MultiModelDetector
+import threading
 
-class DetectorApp:
-    def __init__(self, root):
-        self.root = root
-        root.title("VisionSpeak Detector")
-        root.geometry("500x400")
-        root.resizable(False, False)
+app = Flask(__name__)
+CORS(app)
 
-        self.detector = None
-        self.detection_thread = None
-        self.display_queue = queue.Queue(maxsize=1)
-        self.is_displaying = False
+# Global state
+detector = None
+detector_lock = threading.Lock()
+is_running = False
 
-        self._setup_ui()
-        root.protocol("WM_DELETE_WINDOW", self.on_closing)
+# Snapshot directory
+SNAPSHOT_DIR = 'snapshots'
+if not os.path.exists(SNAPSHOT_DIR):
+    os.makedirs(SNAPSHOT_DIR)
 
-        # Start main-thread display updater
-        self._update_display()
+# ========================================
+# Routes
+# ========================================
 
-    def _setup_ui(self):
-        """Setup the user interface"""
-        style = ttk.Style()
-        style.theme_use('clam')  # Modern theme
-        style.configure('TButton', font=('Arial', 11), padding=10)
-        style.configure('TLabel', font=('Arial', 10))
-        style.configure('Header.TLabel', font=('Arial', 14, 'bold'))
-        style.configure('Status.TLabel', font=('Arial', 10), foreground='#2e7d32')
+@app.route('/')
+def index():
+    """Serve the main page"""
+    return render_template('index.html')
 
-        # Main container
-        main_frame = ttk.Frame(self.root, padding="25 25 25 25")
-        main_frame.pack(fill='both', expand=True)
-
-        # Header
-        header_label = ttk.Label(main_frame, text="🎥 VisionSpeak Object Detector", 
-                                 style='Header.TLabel')
-        header_label.pack(pady=(0, 20))
-
-        # Status section
-        status_frame = ttk.LabelFrame(main_frame, text="Status", padding="10")
-        status_frame.pack(fill='x', pady=(0, 20))
-
-        self.status_var = tk.StringVar(value="Ready to start")
-        self.status_label = ttk.Label(status_frame, textvariable=self.status_var, 
-                                      style='Status.TLabel')
-        self.status_label.pack()
-
-        self.objects_var = tk.StringVar(value="Objects detected: 0")
-        self.objects_label = ttk.Label(status_frame, textvariable=self.objects_var)
-        self.objects_label.pack(pady=(5, 0))
-
-        # Control buttons
-        button_frame = ttk.Frame(main_frame)
-        button_frame.pack(fill='x', pady=(0, 10))
-
-        self.start_button = ttk.Button(button_frame, text="▶ Start Detection", 
-                                       command=self.start_detection)
-        self.start_button.pack(pady=5, fill='x')
-
-        self.stop_button = ttk.Button(button_frame, text="⏹ Stop Detection", 
-                                      command=self.stop_detection, state=tk.DISABLED)
-        self.stop_button.pack(pady=5, fill='x')
-
-        self.pause_button = ttk.Button(button_frame, text="⏸ Pause/Resume Narration", 
-                                       command=self.toggle_pause, state=tk.DISABLED)
-        self.pause_button.pack(pady=5, fill='x')
-
-        self.force_speak_button = ttk.Button(button_frame, text="🔊 Force Speak Now", 
-                                            command=self.force_speak, state=tk.DISABLED)
-        self.force_speak_button.pack(pady=5, fill='x')
-
-        # Info section
-        info_frame = ttk.LabelFrame(main_frame, text="Information", padding="10")
-        info_frame.pack(fill='x', pady=(10, 0))
-
-        info_text = """
-• Detects objects in real-time
-• Narrates scene changes and movement
-• Press 'q' in video window to stop
-• Close window or click Stop to exit
-        """
-        info_label = ttk.Label(info_frame, text=info_text.strip(), 
-                              justify=tk.LEFT, font=('Arial', 9))
-        info_label.pack()
-
-    def start_detection(self):
-        """Start the detection process"""
-        if self.detection_thread and self.detection_thread.is_alive():
-            messagebox.showinfo("Detector", "Detection is already running!")
-            return
-
-        self.status_var.set("Loading models...")
-        self.objects_var.set("Objects detected: 0")
-        self.start_button.config(state=tk.DISABLED)
-        self.root.update()
-
-        try:
-            # Initialize detector
-            self.detector = MultiModelDetector(display_queue=self.display_queue)
-            self.detector.running = True
-            
-            # Start detection thread
-            self.detection_thread = threading.Thread(target=self._run_detector_safe, daemon=True)
-            self.detection_thread.start()
-
-            self.status_var.set("Detecting... (Active)")
-            self.stop_button.config(state=tk.NORMAL)
-            self.pause_button.config(state=tk.NORMAL)
-            self.force_speak_button.config(state=tk.NORMAL)
-            self.is_displaying = True
-
-            print("✅ Detection started successfully!")
-
-        except RuntimeError as e:
-            messagebox.showerror("Camera Error", str(e))
-            self._reset_ui()
-        except Exception as e:
-            messagebox.showerror("Error", f"Failed to start detection: {e}")
-            self._reset_ui()
-
-    def stop_detection(self):
-        """Stop the detection process"""
-        if self.detector and self.detector.running:
-            self.status_var.set("Stopping...")
-            self.stop_button.config(state=tk.DISABLED)
-            self.pause_button.config(state=tk.DISABLED)
-            self.force_speak_button.config(state=tk.DISABLED)
-
-            self.detector.running = False
-            self.is_displaying = False
-
-            # Give it time to clean up
-            self.root.after(200, self._reset_ui)
-
-    def _reset_ui(self):
-        """Reset UI to initial state"""
-        self.status_var.set("Ready to start")
-        self.objects_var.set("Objects detected: 0")
-        self.start_button.config(state=tk.NORMAL)
-        self.stop_button.config(state=tk.DISABLED)
-        self.pause_button.config(state=tk.DISABLED)
-        self.force_speak_button.config(state=tk.DISABLED)
-
-        self.detector = None
-        self.detection_thread = None
-        self.is_displaying = False
-
-        cv2.destroyAllWindows()
-        print("✅ Detector stopped and UI reset")
-
-    def _run_detector_safe(self):
-        """Run detector with error handling"""
-        try:
-            self.detector.run()
-        except Exception as e:
-            print(f"❌ DETECTOR ERROR: {e}")
-            import traceback
-            traceback.print_exc()
-            self.root.after(0, lambda: messagebox.showerror("Error", f"Detection crashed: {e}"))
-        finally:
-            self.root.after(0, self._reset_ui)
-
-    def toggle_pause(self):
-        """Toggle narration pause state"""
-        if self.detector:
-            self.detector.narration_paused = not self.detector.narration_paused
-            status = "PAUSED" if self.detector.narration_paused else "Active"
-            self.status_var.set(f"Detecting... ({status})")
-            print(f"🔇 Narration {status.lower()}")
-
-    def force_speak(self):
-        """Force immediate narration of current scene"""
-        if self.detector and not self.detector.speaking:
-            # Get current objects from last detection
-            current_objects = list(self.detector.last_objects)
-            if current_objects:
-                if len(current_objects) == 1:
-                    text = f"I can see a {current_objects[0]}"
-                elif len(current_objects) == 2:
-                    text = f"I can see a {current_objects[0]} and a {current_objects[1]}"
-                else:
-                    text = f"I can see {', '.join(current_objects[:-1])}, and a {current_objects[-1]}"
-                
-                self.detector._speak_async(text)
-                print(f"🔧 Forced narration: {text}")
-            else:
-                self.detector._speak_async("No objects currently detected")
-                print("🔧 Forced narration: No objects")
-
-    def on_closing(self):
-        """Handle window close event"""
-        if self.detector and self.detector.running:
-            if messagebox.askokcancel("Quit", "Detection is running. Stop and quit?"):
-                self.stop_detection()
-                self.root.after(300, self.root.destroy)
-        else:
-            self.root.destroy()
-
-    def _update_display(self):
-        """Update display in main thread (runs continuously)"""
-        if self.is_displaying and self.detector and self.detector.running:
-            try:
-                # Get frame from queue
-                frame = self.display_queue.get_nowait()
-                
-                # Show frame
-                cv2.imshow("VisionSpeak - Object Detection", frame)
-                
-                # Update object count in GUI
-                if hasattr(self.detector, 'last_objects'):
-                    obj_count = len(self.detector.last_objects)
-                    self.objects_var.set(f"Objects detected: {obj_count}")
-                
-                # Handle keyboard input
-                key = cv2.waitKey(1) & 0xFF
-                if key == ord('q'):
-                    print("'q' pressed - stopping detection")
-                    self.stop_detection()
-                
-            except queue.Empty:
-                pass
-            except Exception as e:
-                print(f"Display error: {e}")
+@app.route('/video_feed')
+def video_feed():
+    """
+    MJPEG video stream endpoint
+    This is what the frontend uses for live video
+    """
+    def generate_frames():
+        global detector, is_running
         
-        # Schedule next update
-        self.root.after(30, self._update_display)
-
-
-def main():
-    """Main entry point"""
-    print("="*50)
-    print("VisionSpeak Object Detector")
-    print("="*50)
+        while is_running and detector:
+            # Get frame from detector
+            if hasattr(detector, 'current_frame') and detector.current_frame is not None:
+                # Encode frame to JPEG
+                _, buffer = cv2.imencode('.jpg', detector.current_frame, 
+                                        [cv2.IMWRITE_JPEG_QUALITY, 85])
+                frame_bytes = buffer.tobytes()
+                
+                # Yield frame in MJPEG format
+                yield (b'--frame\r\n'
+                       b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
+            
+            time.sleep(0.033)  # ~30 FPS
     
-    root = tk.Tk()
-    app = DetectorApp(root)
+    return Response(generate_frames(),
+                   mimetype='multipart/x-mixed-replace; boundary=frame')
+
+# ========================================
+# API Endpoints
+# ========================================
+
+@app.route('/api/start', methods=['POST'])
+def api_start():
+    """Start detection"""
+    global detector, is_running
+    
+    if is_running:
+        return jsonify({'status': 'already_running'})
     
     try:
-        root.mainloop()
-    except KeyboardInterrupt:
-        print("\n⚠️ Interrupted by user")
-    finally:
-        cv2.destroyAllWindows()
-        print("👋 Application closed")
+        with detector_lock:
+            detector = MultiModelDetector(camera_index=0, display_queue=None)
+            detector.running = True
+            is_running = True
+        
+        # Start detector in background thread
+        thread = threading.Thread(target=detector.run, daemon=True)
+        thread.start()
+        
+        return jsonify({'status': 'started'})
+    
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
 
+@app.route('/api/stop', methods=['POST'])
+def api_stop():
+    """Stop detection"""
+    global detector, is_running
+    
+    try:
+        with detector_lock:
+            is_running = False
+            if detector:
+                detector.running = False
+                if detector.cap:
+                    detector.cap.release()
+                detector = None
+        
+        return jsonify({'status': 'stopped'})
+    
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
 
-if __name__ == "__main__":
-    main()
+@app.route('/api/status')
+def api_status():
+    """Get current detection status"""
+    global detector, is_running
+    
+    if not is_running or not detector:
+        return jsonify({
+            'running': False,
+            'objects': [],
+            'object_count': 0
+        })
+    
+    # Get current detections (you need to store these in detector)
+    objects = []
+    object_count = 0
+    
+    if hasattr(detector, 'last_objects'):
+        objects = [{'name': obj} for obj in detector.last_objects]
+        object_count = len(detector.last_objects)
+    
+    return jsonify({
+        'running': True,
+        'objects': objects,
+        'object_count': object_count,
+        'narration_paused': getattr(detector, 'narration_paused', False)
+    })
+
+@app.route('/api/toggle_narration', methods=['POST'])
+def api_toggle_narration():
+    """Toggle narration on/off"""
+    global detector
+    
+    if detector:
+        detector.narration_paused = not detector.narration_paused
+        status = 'paused' if detector.narration_paused else 'active'
+        return jsonify({'status': status})
+    
+    return jsonify({'status': 'error', 'message': 'Detector not running'}), 400
+
+@app.route('/api/force_speak', methods=['POST'])
+def api_force_speak():
+    """Force immediate narration"""
+    global detector
+    
+    if detector and not detector.speaking:
+        # Get current objects
+        current_objects = list(getattr(detector, 'last_objects', set()))
+        
+        if current_objects:
+            # Create description
+            if len(current_objects) == 1:
+                text = f"I can see a {current_objects[0]}"
+            elif len(current_objects) == 2:
+                text = f"I can see a {current_objects[0]} and a {current_objects[1]}"
+            else:
+                text = f"I can see {', '.join(current_objects[:-1])}, and a {current_objects[-1]}"
+            
+            # Speak
+            detector._speak_async(text)
+            return jsonify({'status': 'speaking', 'text': text})
+        else:
+            detector._speak_async("No objects currently detected")
+            return jsonify({'status': 'speaking', 'text': 'No objects'})
+    
+    return jsonify({'status': 'error', 'message': 'Cannot speak'}), 400
+
+@app.route('/api/change_confidence', methods=['POST'])
+def api_change_confidence():
+    """Change confidence threshold"""
+    global detector
+    
+    data = request.get_json()
+    threshold = data.get('threshold', 0.35)
+    threshold = max(0.1, min(0.9, threshold))
+    
+    if detector:
+        detector.confidence_threshold = threshold
+        return jsonify({'threshold': threshold})
+    
+    return jsonify({'status': 'error', 'message': 'Detector not running'}), 400
+
+@app.route('/api/snapshot', methods=['POST'])
+def api_snapshot():
+    """Save current frame as snapshot"""
+    global detector
+    
+    if detector and hasattr(detector, 'current_frame') and detector.current_frame is not None:
+        try:
+            # Generate filename with timestamp
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            filename = f'snapshot_{timestamp}.jpg'
+            filepath = os.path.join(SNAPSHOT_DIR, filename)
+            
+            # Save frame
+            cv2.imwrite(filepath, detector.current_frame)
+            
+            return jsonify({
+                'success': True,
+                'filename': filename,
+                'path': filepath
+            })
+        
+        except Exception as e:
+            return jsonify({'success': False, 'error': str(e)}), 500
+    
+    return jsonify({'success': False, 'error': 'No frame available'}), 400
+
+# ========================================
+# Health Check
+# ========================================
+
+@app.route('/health')
+def health():
+    """Health check endpoint"""
+    return jsonify({
+        'status': 'healthy',
+        'detector_running': is_running
+    })
+
+# ========================================
+# Main
+# ========================================
+
+if __name__ == '__main__':
+    print("="*60)
+    print("🎥 VisionSpeak Backend Server")
+    print("="*60)
+    print("Starting server on http://localhost:5000")
+    print("Open browser to http://localhost:5000")
+    print("="*60)
+    
+    app.run(host='0.0.0.0', port=5000, debug=True, threaded=True)
