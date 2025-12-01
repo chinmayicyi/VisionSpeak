@@ -96,20 +96,46 @@ class MultiModelDetector:
         return movements
 
     def _detect_scene_changes(self, current_objects):
-        """Detect changes in scene"""
-        new_objects = current_objects - self.last_objects
-        removed_objects = self.last_objects - current_objects
+        """Detect changes in scene with proper person counting"""
+        # Count persons specifically
+        current_person_count = sum(1 for obj in current_objects if obj == 'person')
+        last_person_count = sum(1 for obj in self.last_objects if obj == 'person')
+        
+        # Get non-person objects
+        current_others = {obj for obj in current_objects if obj != 'person'}
+        last_others = {obj for obj in self.last_objects if obj != 'person'}
         
         changes = []
-        if new_objects:
-            for obj in new_objects:
-                changes.append(f"new {obj} detected")
-                print(f"➕ New: {obj}")
         
-        if removed_objects:
-            for obj in removed_objects:
-                changes.append(f"{obj} left view")
-                print(f"➖ Removed: {obj}")
+        # Handle person count changes
+        if current_person_count > last_person_count:
+            diff = current_person_count - last_person_count
+            if diff == 1:
+                changes.append("new person detected")
+            else:
+                changes.append(f"{diff} new persons detected")
+        elif current_person_count < last_person_count:
+            diff = last_person_count - current_person_count
+            if diff == 1:
+                changes.append("person left view")
+            else:
+                changes.append(f"{diff} persons left view")
+        
+        # Handle other objects
+        new_objects = current_others - last_others
+        removed_objects = last_others - current_others
+        
+        for obj in new_objects:
+            changes.append(f"new {obj} detected")
+            print(f"➕ New: {obj}")
+        
+        for obj in removed_objects:
+            changes.append(f"{obj} left view")
+            print(f"➖ Removed: {obj}")
+        
+        # Print person count changes
+        if current_person_count != last_person_count:
+            print(f"👤 Person count changed: {last_person_count} → {current_person_count}")
         
         return changes
 
@@ -178,15 +204,31 @@ class MultiModelDetector:
         return False, None, []
 
     def _create_description(self, detections, special_events=None):
-        """Create natural language description"""
+        """Create natural language description with proper counting"""
+        # Priority for special events (movement/scene changes)
         if special_events:
-            if len(special_events) == 1:
-                return special_events[0]
-            elif len(special_events) == 2:
-                return f"{special_events[0]} and {special_events[1]}"
+            # Count persons in special events
+            person_events = [e for e in special_events if 'person' in e]
+            other_events = [e for e in special_events if 'person' not in e]
+            
+            # Count how many "new person" events
+            person_count = sum(1 for e in person_events if 'new person' in e)
+            
+            # Create better descriptions for multiple persons
+            if person_count > 1:
+                description_parts = [f"{person_count} persons detected"]
+                description_parts.extend(other_events)
             else:
-                return f"{', '.join(special_events[:-1])}, and {special_events[-1]}"
+                description_parts = person_events + other_events
+            
+            if len(description_parts) == 1:
+                return description_parts[0]
+            elif len(description_parts) == 2:
+                return f"{description_parts[0]} and {description_parts[1]}"
+            else:
+                return f"{', '.join(description_parts[:-1])}, and {description_parts[-1]}"
         
+        # Regular object description with proper counting
         if not detections:
             return "No objects in view"
         
@@ -195,13 +237,24 @@ class MultiModelDetector:
             name = det['name']
             object_counts[name] = object_counts.get(name, 0) + 1
         
+        # Create description parts with proper pluralization
         parts = []
         for obj, count in sorted(object_counts.items()):
-            if count == 1:
-                parts.append(f"a {obj}")
+            if obj == 'person':
+                # Special handling for persons
+                if count == 1:
+                    parts.append("a person")
+                else:
+                    parts.append(f"{count} persons")
             else:
-                parts.append(f"{count} {obj}s")
+                # Regular objects
+                if count == 1:
+                    parts.append(f"a {obj}")
+                else:
+                    # Proper pluralization
+                    parts.append(f"{count} {obj}s")
         
+        # Construct natural sentence
         if len(parts) == 1:
             return f"I can see {parts[0]}"
         elif len(parts) == 2:
@@ -209,7 +262,9 @@ class MultiModelDetector:
         elif len(parts) <= 4:
             return f"I can see {', '.join(parts[:-1])}, and {parts[-1]}"
         else:
-            return f"I can see {len(detections)} objects including {parts[0]}, {parts[1]}, and others"
+            # Too many object types, summarize
+            total = len(detections)
+            return f"I can see {total} objects including {parts[0]}, {parts[1]}, and others"
 
     def _remove_duplicates(self, detections):
         """Remove duplicate detections"""
@@ -344,28 +399,70 @@ class MultiModelDetector:
             # Draw detections
             annotated_frame = self._draw_detections(frame.copy(), unique_detections)
             
-            # Add status overlay
+            # Calculate object counts for display
+            object_counts = {}
+            total_objects = len(unique_detections)
+            
+            for det in unique_detections:
+                name = det['name']
+                object_counts[name] = object_counts.get(name, 0) + 1
+            
+            # Add status overlay - LARGER AND MORE PROMINENT
             current_time = time.time()
             time_since_last = current_time - self.last_narration_time
             
+            # TOP BANNER - Total Objects Count
+            banner_height = 80
+            overlay = annotated_frame.copy()
+            cv2.rectangle(overlay, (0, 0), (annotated_frame.shape[1], banner_height), (0, 0, 0), -1)
+            cv2.addWeighted(overlay, 0.7, annotated_frame, 0.3, 0, annotated_frame)
+            
+            # LARGE total count
+            total_text = f"TOTAL OBJECTS: {total_objects}"
+            cv2.putText(annotated_frame, total_text, (20, 45), 
+                       cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 255, 255), 3)
+            
+            # Status indicator
             status_color = (0, 0, 255) if self.speaking else (0, 255, 0)
-            status_text = "Speaking..." if self.speaking else "Listening"
-            narration_text = "PAUSED" if self.narration_paused else "Active"
+            status_text = "SPEAKING..." if self.speaking else "LISTENING"
+            narration_text = "PAUSED" if self.narration_paused else "ACTIVE"
             
-            cv2.putText(annotated_frame, f"Objects: {len(unique_detections)} | {status_text} | Narration: {narration_text}",
-                       (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, status_color, 2)
+            cv2.putText(annotated_frame, f"Status: {status_text}", 
+                       (annotated_frame.shape[1] - 300, 30), 
+                       cv2.FONT_HERSHEY_SIMPLEX, 0.6, status_color, 2)
             
+            cv2.putText(annotated_frame, f"Narration: {narration_text}", 
+                       (annotated_frame.shape[1] - 300, 60), 
+                       cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+            
+            # DETAILED BREAKDOWN - Below banner
+            y_offset = banner_height + 30
+            
+            if object_counts:
+                # Show breakdown of each object type
+                breakdown_text = "Detected: "
+                parts = []
+                for obj, count in sorted(object_counts.items()):
+                    if obj == 'person':
+                        parts.append(f"{count} {'person' if count == 1 else 'persons'}")
+                    else:
+                        parts.append(f"{count} {obj}{'s' if count > 1 else ''}")
+                
+                breakdown_text += ", ".join(parts)
+                
+                # Draw breakdown with background
+                text_size = cv2.getTextSize(breakdown_text, cv2.FONT_HERSHEY_SIMPLEX, 0.7, 2)[0]
+                cv2.rectangle(annotated_frame, (10, y_offset - 25), 
+                            (20 + text_size[0], y_offset + 5), (0, 0, 0), -1)
+                cv2.rectangle(annotated_frame, (10, y_offset - 25), 
+                            (20 + text_size[0], y_offset + 5), (0, 255, 255), 2)
+                
+                cv2.putText(annotated_frame, breakdown_text, (15, y_offset), 
+                           cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+            
+            # Last spoke time
             cv2.putText(annotated_frame, f"Last spoke: {time_since_last:.1f}s ago",
-                       (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
-            
-            # Show detected objects
-            if unique_detections:
-                obj_names = [d['name'] for d in unique_detections[:5]]
-                obj_text = ', '.join(obj_names)
-                if len(unique_detections) > 5:
-                    obj_text += f" +{len(unique_detections)-5}"
-                cv2.putText(annotated_frame, f"Detected: {obj_text}",
-                           (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1)
+                       (15, y_offset + 35), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (200, 200, 200), 1)
             
             # Send frame
             if self.display_queue:
