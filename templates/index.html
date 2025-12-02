@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="VisionSpeak - AI-powered assistive technology for object detection and narration">
     <title>VisionSpeak - AI Vision Assistant</title>
     
     <!-- Fonts -->
@@ -14,18 +15,15 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <!-- Stylesheet -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
     <!-- Header -->
     <header class="header">
         <div class="header-content">
-            <div class="logo-container">
-                <img src="{{ url_for('static', filename='icon-128.jpg') }}" alt="VisionSpeak Logo" class="logo-image">
-                <div class="logo-text">
-                    <i class="fas fa-eye"></i>
-                    <span>VisionSpeak</span>
-                </div>
+            <div class="logo">
+                <i class="fas fa-eye"></i>
+                <span>VisionSpeak</span>
             </div>
             <nav class="nav-controls">
                 <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme">
@@ -37,152 +35,84 @@
 
     <!-- Main Container -->
     <main class="main-container">
-        
-        <!-- Source Toggle -->
-        <section class="source-toggle">
-            <div class="toggle-group">
-                <button class="toggle-btn active" id="cameraBtn" data-source="camera">
-                    <i class="fas fa-video"></i>
-                    <span>Live Camera</span>
+        <!-- Video Stage -->
+        <section class="video-stage">
+            <div class="video-container" id="videoContainer">
+                <div class="video-header">
+                    <span class="live-badge" id="liveBadge">
+                        <span class="pulse-dot"></span>
+                        <span>STANDBY</span>
+                    </span>
+                    <span class="object-count" id="objectCount">0 Objects</span>
+                </div>
+                
+                <img id="videoFeed" class="video-feed" src="" alt="Video feed">
+                
+                <div class="video-placeholder" id="videoPlaceholder">
+                    <i class="fas fa-video-slash"></i>
+                    <p>Camera Inactive</p>
+                    <span class="placeholder-hint">Click "Start Detection" to begin</span>
+                </div>
+                
+                <!-- Detection Overlay Stats -->
+                <div class="detection-stats" id="detectionStats">
+                    <div class="stat-card">
+                        <i class="fas fa-users"></i>
+                        <div class="stat-info">
+                            <span class="stat-value" id="personCount">0</span>
+                            <span class="stat-label">Persons</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <i class="fas fa-cube"></i>
+                        <div class="stat-info">
+                            <span class="stat-value" id="otherCount">0</span>
+                            <span class="stat-label">Objects</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <i class="fas fa-gauge-high"></i>
+                        <div class="stat-info">
+                            <span class="stat-value" id="fpsCount">0</span>
+                            <span class="stat-label">FPS</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Control Center -->
+        <section class="control-center">
+            <div class="control-group">
+                <button class="control-btn primary" id="startStopBtn" aria-label="Start detection">
+                    <i class="fas fa-play"></i>
+                    <span>Start Detection</span>
                 </button>
-                <button class="toggle-btn" id="uploadBtn" data-source="upload">
-                    <i class="fas fa-upload"></i>
-                    <span>Upload Media</span>
+                
+                <button class="control-btn" id="muteBtn" aria-label="Mute narration" disabled>
+                    <i class="fas fa-volume-up"></i>
+                    <span>Mute</span>
+                </button>
+                
+                <button class="control-btn" id="snapshotBtn" aria-label="Take snapshot" disabled>
+                    <i class="fas fa-camera"></i>
+                    <span>Snapshot</span>
+                </button>
+                
+                <button class="control-btn" id="forceSpeakBtn" aria-label="Force speak" disabled>
+                    <i class="fas fa-microphone"></i>
+                    <span>Speak Now</span>
                 </button>
             </div>
         </section>
 
-        <!-- Camera View -->
-        <div id="cameraView" class="source-view active">
-            <!-- Video Stage -->
-            <section class="video-stage">
-                <div class="video-container" id="videoContainer">
-                    <div class="video-header">
-                        <span class="live-badge" id="liveBadge">
-                            <span class="pulse-dot"></span>
-                            <span>STANDBY</span>
-                        </span>
-                        <span class="object-count" id="objectCount">0 Objects</span>
-                    </div>
-                    
-                    <img id="videoFeed" class="video-feed" src="" alt="Video feed">
-                    
-                    <div class="video-placeholder" id="videoPlaceholder">
-                        <i class="fas fa-video-slash"></i>
-                        <p>Camera Inactive</p>
-                        <span class="placeholder-hint">Click "Start Camera" to begin</span>
-                    </div>
-                    
-                    <!-- Stats -->
-                    <div class="detection-stats" id="detectionStats">
-                        <div class="stat-card">
-                            <i class="fas fa-users"></i>
-                            <div class="stat-info">
-                                <span class="stat-value" id="personCount">0</span>
-                                <span class="stat-label">Persons</span>
-                            </div>
-                        </div>
-                        <div class="stat-card">
-                            <i class="fas fa-cube"></i>
-                            <div class="stat-info">
-                                <span class="stat-value" id="otherCount">0</span>
-                                <span class="stat-label">Objects</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Camera Controls -->
-            <section class="control-center">
-                <div class="control-group">
-                    <button class="control-btn primary" id="startStopBtn">
-                        <i class="fas fa-play"></i>
-                        <span>Start Camera</span>
-                    </button>
-                    
-                    <button class="control-btn" id="muteBtn" disabled>
-                        <i class="fas fa-volume-up"></i>
-                        <span>Mute</span>
-                    </button>
-                    
-                    <button class="control-btn" id="snapshotBtn" disabled>
-                        <i class="fas fa-camera"></i>
-                        <span>Snapshot</span>
-                    </button>
-                    
-                    <button class="control-btn" id="forceSpeakBtn" disabled>
-                        <i class="fas fa-microphone"></i>
-                        <span>Speak Now</span>
-                    </button>
-                </div>
-            </section>
-        </div>
-
-        <!-- Upload View -->
-        <div id="uploadView" class="source-view">
-            <!-- Upload Area -->
-            <section class="upload-section">
-                <div class="upload-container" id="uploadContainer">
-                    <div class="upload-icon">
-                        <i class="fas fa-cloud-upload-alt"></i>
-                    </div>
-                    <h3>Upload Image or Video</h3>
-                    <p class="upload-hint">Drag and drop or click to browse</p>
-                    <p class="upload-formats">Supported: JPG, PNG, MP4, AVI, MOV</p>
-                    
-                    <input type="file" id="fileInput" accept="image/*,video/*" style="display: none;">
-                    
-                    <button class="upload-browse-btn" onclick="document.getElementById('fileInput').click()">
-                        <i class="fas fa-folder-open"></i>
-                        <span>Browse Files</span>
-                    </button>
-                </div>
-                
-                <!-- Upload Preview -->
-                <div class="upload-preview" id="uploadPreview" style="display: none;">
-                    <div class="preview-header">
-                        <span class="preview-filename" id="previewFilename"></span>
-                        <button class="preview-close" id="clearUpload">
-                            <i class="fas fa-times"></i>
-                        </button>
-                    </div>
-                    
-                    <div class="preview-container">
-                        <img id="uploadVideoFeed" class="video-feed" src="" alt="Uploaded media">
-                    </div>
-                    
-                    <div class="preview-stats" id="uploadStats">
-                        <!-- Stats will be populated here -->
-                    </div>
-                </div>
-            </section>
-
-            <!-- Upload Controls -->
-            <section class="control-center">
-                <div class="control-group">
-                    <button class="control-btn primary" id="processUploadBtn" disabled>
-                        <i class="fas fa-play"></i>
-                        <span>Process Media</span>
-                    </button>
-                    
-                    <button class="control-btn" id="uploadSnapshotBtn" disabled>
-                        <i class="fas fa-download"></i>
-                        <span>Download Result</span>
-                    </button>
-                </div>
-            </section>
-        </div>
-
         <!-- Settings Panel -->
         <section class="settings-panel">
-            <h3 class="section-title">
-                <i class="fas fa-sliders"></i>
-                Detection Settings
-            </h3>
             <div class="settings-grid">
+                <!-- Confidence Threshold -->
                 <div class="setting-item">
                     <label for="confidenceSlider" class="setting-label">
+                        <i class="fas fa-sliders"></i>
                         <span>Confidence Threshold</span>
                         <span class="setting-value" id="confidenceValue">35%</span>
                     </label>
@@ -194,10 +124,73 @@
                         max="90" 
                         value="35" 
                         step="5"
+                        aria-label="Confidence threshold"
+                        disabled
                     >
                     <div class="slider-labels">
-                        <span>Low</span>
-                        <span>High</span>
+                        <span>Low (10%)</span>
+                        <span>High (90%)</span>
+                    </div>
+                </div>
+
+                <!-- Volume Control -->
+                <div class="setting-item">
+                    <label for="volumeSlider" class="setting-label">
+                        <i class="fas fa-volume-high"></i>
+                        <span>Narration Volume</span>
+                        <span class="setting-value" id="volumeValue">90%</span>
+                    </label>
+                    <input 
+                        type="range" 
+                        id="volumeSlider" 
+                        class="slider" 
+                        min="0" 
+                        max="100" 
+                        value="90" 
+                        step="10"
+                        aria-label="Volume control"
+                        disabled
+                    >
+                    <div class="slider-labels">
+                        <span>Mute</span>
+                        <span>Max</span>
+                    </div>
+                </div>
+
+                <!-- TTS Voice Selection -->
+                <div class="setting-item">
+                    <label for="voiceSelect" class="setting-label">
+                        <i class="fas fa-user-voice"></i>
+                        <span>TTS Voice</span>
+                    </label>
+                    <select id="voiceSelect" class="select-dropdown" disabled>
+                        <option value="default">Default Voice</option>
+                        <option value="male">Male Voice</option>
+                        <option value="female">Female Voice</option>
+                    </select>
+                </div>
+
+                <!-- Speech Rate -->
+                <div class="setting-item">
+                    <label for="rateSlider" class="setting-label">
+                        <i class="fas fa-gauge"></i>
+                        <span>Speech Rate</span>
+                        <span class="setting-value" id="rateValue">150 wpm</span>
+                    </label>
+                    <input 
+                        type="range" 
+                        id="rateSlider" 
+                        class="slider" 
+                        min="100" 
+                        max="200" 
+                        value="150" 
+                        step="10"
+                        aria-label="Speech rate"
+                        disabled
+                    >
+                    <div class="slider-labels">
+                        <span>Slow</span>
+                        <span>Fast</span>
                     </div>
                 </div>
             </div>
@@ -207,15 +200,15 @@
         <section class="terminal-section">
             <div class="terminal-header">
                 <i class="fas fa-terminal"></i>
-                <span>Activity Log</span>
-                <button class="clear-log-btn" id="clearLogBtn">
+                <span>Detection Log</span>
+                <button class="clear-log-btn" id="clearLogBtn" aria-label="Clear log">
                     <i class="fas fa-trash"></i>
                 </button>
             </div>
             <div class="terminal-body" id="terminalBody">
                 <div class="terminal-line welcome">
                     <span class="timestamp">[--:--:--]</span>
-                    <span class="message">VisionSpeak initialized. Ready to start.</span>
+                    <span class="message">VisionSpeak initialized. Ready to start detection.</span>
                 </div>
             </div>
         </section>
@@ -226,457 +219,10 @@
         <p>VisionSpeak &copy; 2024 | Assistive Technology for All</p>
     </footer>
 
-    <!-- Toast -->
-    <div class="toast" id="toast"></div>
+    <!-- Toast Notification -->
+    <div class="toast" id="toast" role="alert" aria-live="polite"></div>
 
     <!-- Script -->
-    <script>
-    class VisionSpeakApp {
-        constructor() {
-            this.isDetecting = false;
-            this.isMuted = false;
-            this.currentSource = 'camera';
-            this.uploadedFile = null;
-            
-            this.elements = {
-                // Source toggle
-                cameraBtn: document.getElementById('cameraBtn'),
-                uploadBtn: document.getElementById('uploadBtn'),
-                cameraView: document.getElementById('cameraView'),
-                uploadView: document.getElementById('uploadView'),
-                
-                // Camera elements
-                videoFeed: document.getElementById('videoFeed'),
-                videoPlaceholder: document.getElementById('videoPlaceholder'),
-                videoContainer: document.getElementById('videoContainer'),
-                liveBadge: document.getElementById('liveBadge'),
-                objectCount: document.getElementById('objectCount'),
-                personCount: document.getElementById('personCount'),
-                otherCount: document.getElementById('otherCount'),
-                
-                // Camera controls
-                startStopBtn: document.getElementById('startStopBtn'),
-                muteBtn: document.getElementById('muteBtn'),
-                snapshotBtn: document.getElementById('snapshotBtn'),
-                forceSpeakBtn: document.getElementById('forceSpeakBtn'),
-                
-                // Upload elements
-                uploadContainer: document.getElementById('uploadContainer'),
-                uploadPreview: document.getElementById('uploadPreview'),
-                fileInput: document.getElementById('fileInput'),
-                uploadVideoFeed: document.getElementById('uploadVideoFeed'),
-                previewFilename: document.getElementById('previewFilename'),
-                clearUpload: document.getElementById('clearUpload'),
-                processUploadBtn: document.getElementById('processUploadBtn'),
-                uploadSnapshotBtn: document.getElementById('uploadSnapshotBtn'),
-                uploadStats: document.getElementById('uploadStats'),
-                
-                // Settings
-                confidenceSlider: document.getElementById('confidenceSlider'),
-                confidenceValue: document.getElementById('confidenceValue'),
-                
-                // Terminal
-                terminalBody: document.getElementById('terminalBody'),
-                clearLogBtn: document.getElementById('clearLogBtn'),
-                
-                // Theme
-                themeToggle: document.getElementById('themeToggle'),
-                
-                // Toast
-                toast: document.getElementById('toast')
-            };
-            
-            this.init();
-        }
-        
-        init() {
-            this.setupEventListeners();
-            this.loadTheme();
-            this.setupDragAndDrop();
-            this.log('System ready.', 'welcome');
-        }
-        
-        setupEventListeners() {
-            // Source toggle
-            this.elements.cameraBtn.addEventListener('click', () => this.switchSource('camera'));
-            this.elements.uploadBtn.addEventListener('click', () => this.switchSource('upload'));
-            
-            // Camera controls
-            this.elements.startStopBtn.addEventListener('click', () => this.toggleCamera());
-            this.elements.muteBtn.addEventListener('click', () => this.toggleMute());
-            this.elements.snapshotBtn.addEventListener('click', () => this.takeSnapshot());
-            this.elements.forceSpeakBtn.addEventListener('click', () => this.forceSpeak());
-            
-            // Upload controls
-            this.elements.fileInput.addEventListener('change', (e) => this.handleFileSelect(e));
-            this.elements.clearUpload.addEventListener('click', () => this.clearUpload());
-            this.elements.processUploadBtn.addEventListener('click', () => this.processUpload());
-            this.elements.uploadSnapshotBtn.addEventListener('click', () => this.downloadResult());
-            
-            // Settings
-            this.elements.confidenceSlider.addEventListener('input', (e) => this.updateConfidence(e.target.value));
-            
-            // Terminal
-            this.elements.clearLogBtn.addEventListener('click', () => this.clearLog());
-            
-            // Theme
-            this.elements.themeToggle.addEventListener('click', () => this.toggleTheme());
-        }
-        
-        setupDragAndDrop() {
-            const container = this.elements.uploadContainer;
-            
-            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-                container.addEventListener(eventName, (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                });
-            });
-            
-            ['dragenter', 'dragover'].forEach(eventName => {
-                container.addEventListener(eventName, () => {
-                    container.classList.add('drag-over');
-                });
-            });
-            
-            ['dragleave', 'drop'].forEach(eventName => {
-                container.addEventListener(eventName, () => {
-                    container.classList.remove('drag-over');
-                });
-            });
-            
-            container.addEventListener('drop', (e) => {
-                const files = e.dataTransfer.files;
-                if (files.length > 0) {
-                    this.elements.fileInput.files = files;
-                    this.handleFileSelect({ target: { files } });
-                }
-            });
-        }
-        
-        switchSource(source) {
-            if (this.isDetecting) {
-                this.showToast('Please stop current operation first', 'warning');
-                return;
-            }
-            
-            this.currentSource = source;
-            
-            // Update toggle buttons
-            if (source === 'camera') {
-                this.elements.cameraBtn.classList.add('active');
-                this.elements.uploadBtn.classList.remove('active');
-                this.elements.cameraView.classList.add('active');
-                this.elements.uploadView.classList.remove('active');
-            } else {
-                this.elements.uploadBtn.classList.add('active');
-                this.elements.cameraBtn.classList.remove('active');
-                this.elements.uploadView.classList.add('active');
-                this.elements.cameraView.classList.remove('active');
-            }
-            
-            this.log(`Switched to ${source} mode`, 'info');
-        }
-        
-        async toggleCamera() {
-            if (this.isDetecting) {
-                await this.stopCamera();
-            } else {
-                await this.startCamera();
-            }
-        }
-        
-        async startCamera() {
-            try {
-                this.log('Starting camera...', 'info');
-                
-                const response = await fetch('/api/start', { method: 'POST' });
-                const data = await response.json();
-                
-                if (data.status === 'started') {
-                    this.isDetecting = true;
-                    this.updateCameraUI(true);
-                    this.startVideoFeed();
-                    this.startStatsUpdate();
-                    this.log('Camera started successfully!', 'success');
-                    this.showToast('Camera started', 'success');
-                }
-            } catch (error) {
-                this.log(`Error: ${error.message}`, 'error');
-                this.showToast('Failed to start camera', 'error');
-            }
-        }
-        
-        async stopCamera() {
-            try {
-                await fetch('/api/stop', { method: 'POST' });
-                this.isDetecting = false;
-                this.updateCameraUI(false);
-                this.stopVideoFeed();
-                this.stopStatsUpdate();
-                this.log('Camera stopped', 'info');
-                this.showToast('Camera stopped', 'info');
-            } catch (error) {
-                this.log(`Error: ${error.message}`, 'error');
-            }
-        }
-        
-        updateCameraUI(isActive) {
-            if (isActive) {
-                this.elements.startStopBtn.classList.add('active');
-                this.elements.startStopBtn.innerHTML = '<i class="fas fa-stop"></i><span>Stop Camera</span>';
-                this.elements.muteBtn.disabled = false;
-                this.elements.snapshotBtn.disabled = false;
-                this.elements.forceSpeakBtn.disabled = false;
-                this.elements.videoContainer.classList.add('active');
-                this.elements.liveBadge.classList.add('active');
-                this.elements.liveBadge.innerHTML = '<span class="pulse-dot"></span><span>LIVE</span>';
-            } else {
-                this.elements.startStopBtn.classList.remove('active');
-                this.elements.startStopBtn.innerHTML = '<i class="fas fa-play"></i><span>Start Camera</span>';
-                this.elements.muteBtn.disabled = true;
-                this.elements.snapshotBtn.disabled = true;
-                this.elements.forceSpeakBtn.disabled = true;
-                this.elements.videoContainer.classList.remove('active');
-                this.elements.liveBadge.classList.remove('active');
-                this.elements.liveBadge.innerHTML = '<span class="pulse-dot"></span><span>STANDBY</span>';
-            }
-        }
-        
-        startVideoFeed() {
-            this.elements.videoFeed.src = '/video_feed?' + new Date().getTime();
-            this.elements.videoFeed.classList.add('active');
-            this.elements.videoPlaceholder.classList.add('hidden');
-        }
-        
-        stopVideoFeed() {
-            this.elements.videoFeed.src = '';
-            this.elements.videoFeed.classList.remove('active');
-            this.elements.videoPlaceholder.classList.remove('hidden');
-        }
-        
-        startStatsUpdate() {
-            this.statsInterval = setInterval(() => this.fetchStats(), 1000);
-        }
-        
-        stopStatsUpdate() {
-            if (this.statsInterval) {
-                clearInterval(this.statsInterval);
-            }
-        }
-        
-        async fetchStats() {
-            try {
-                const response = await fetch('/api/status');
-                const data = await response.json();
-                
-                if (data.running) {
-                    this.elements.objectCount.textContent = `${data.object_count} Object${data.object_count !== 1 ? 's' : ''}`;
-                    
-                    let personCount = 0;
-                    let otherCount = 0;
-                    
-                    data.objects.forEach(obj => {
-                        if (obj.name === 'person') {
-                            personCount = obj.count;
-                        } else {
-                            otherCount += obj.count;
-                        }
-                    });
-                    
-                    this.elements.personCount.textContent = personCount;
-                    this.elements.otherCount.textContent = otherCount;
-                }
-            } catch (error) {
-                console.error('Stats error:', error);
-            }
-        }
-        
-        handleFileSelect(e) {
-            const file = e.target.files[0];
-            if (!file) return;
-            
-            this.uploadedFile = file;
-            this.elements.previewFilename.textContent = file.name;
-            this.elements.uploadContainer.style.display = 'none';
-            this.elements.uploadPreview.style.display = 'block';
-            this.elements.processUploadBtn.disabled = false;
-            
-            this.log(`File selected: ${file.name}`, 'info');
-        }
-        
-        clearUpload() {
-            this.uploadedFile = null;
-            this.elements.fileInput.value = '';
-            this.elements.uploadContainer.style.display = 'block';
-            this.elements.uploadPreview.style.display = 'none';
-            this.elements.processUploadBtn.disabled = true;
-            this.elements.uploadSnapshotBtn.disabled = true;
-            this.elements.uploadVideoFeed.src = '';
-            
-            if (this.isDetecting) {
-                this.stopCamera();
-            }
-            
-            this.log('Upload cleared', 'info');
-        }
-        
-        async processUpload() {
-            if (!this.uploadedFile) return;
-            
-            try {
-                this.log('Processing uploaded media...', 'info');
-                
-                const formData = new FormData();
-                formData.append('file', this.uploadedFile);
-                
-                const response = await fetch('/api/upload', {
-                    method: 'POST',
-                    body: formData
-                });
-                
-                const data = await response.json();
-                
-                if (data.status === 'started') {
-                    this.isDetecting = true;
-                    this.elements.uploadVideoFeed.src = '/video_feed?' + new Date().getTime();
-                    this.elements.uploadVideoFeed.classList.add('active');
-                    this.elements.uploadSnapshotBtn.disabled = false;
-                    this.log(`Processing ${data.type}: ${data.filename}`, 'success');
-                    this.showToast('Media processed successfully', 'success');
-                } else {
-                    throw new Error(data.message);
-                }
-            } catch (error) {
-                this.log(`Error: ${error.message}`, 'error');
-                this.showToast('Failed to process media', 'error');
-            }
-        }
-        
-        downloadResult() {
-            this.takeSnapshot();
-        }
-        
-        async toggleMute() {
-            try {
-                const response = await fetch('/api/toggle_narration', { method: 'POST' });
-                const data = await response.json();
-                
-                this.isMuted = data.status === 'paused';
-                
-                if (this.isMuted) {
-                    this.elements.muteBtn.classList.add('muted');
-                    this.elements.muteBtn.innerHTML = '<i class="fas fa-volume-xmark"></i><span>Unmute</span>';
-                    this.log('Narration muted', 'warning');
-                } else {
-                    this.elements.muteBtn.classList.remove('muted');
-                    this.elements.muteBtn.innerHTML = '<i class="fas fa-volume-up"></i><span>Mute</span>';
-                    this.log('Narration active', 'success');
-                }
-            } catch (error) {
-                this.log(`Error: ${error.message}`, 'error');
-            }
-        }
-        
-        async forceSpeak() {
-            try {
-                await fetch('/api/force_speak', { method: 'POST' });
-                this.log('Force speak triggered', 'info');
-            } catch (error) {
-                this.log(`Error: ${error.message}`, 'error');
-            }
-        }
-        
-        async takeSnapshot() {
-            try {
-                const response = await fetch('/api/snapshot', { method: 'POST' });
-                const data = await response.json();
-                
-                if (data.success) {
-                    this.log(`Snapshot saved: ${data.filename}`, 'success');
-                    this.showToast('Snapshot saved!', 'success');
-                }
-            } catch (error) {
-                this.log(`Error: ${error.message}`, 'error');
-            }
-        }
-        
-        async updateConfidence(value) {
-            this.elements.confidenceValue.textContent = `${value}%`;
-            
-            try {
-                await fetch('/api/change_confidence', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ threshold: parseFloat(value) / 100 })
-                });
-            } catch (error) {
-                console.error(error);
-            }
-        }
-        
-        log(message, type = 'info') {
-            const timestamp = new Date().toLocaleTimeString();
-            const line = document.createElement('div');
-            line.className = `terminal-line ${type}`;
-            line.innerHTML = `
-                <span class="timestamp">[${timestamp}]</span>
-                <span class="message">${message}</span>
-            `;
-            
-            this.elements.terminalBody.appendChild(line);
-            this.elements.terminalBody.scrollTop = this.elements.terminalBody.scrollHeight;
-            
-            while (this.elements.terminalBody.children.length > 100) {
-                this.elements.terminalBody.removeChild(this.elements.terminalBody.firstChild);
-            }
-        }
-        
-        clearLog() {
-            this.elements.terminalBody.innerHTML = `
-                <div class="terminal-line welcome">
-                    <span class="timestamp">[${new Date().toLocaleTimeString()}]</span>
-                    <span class="message">Log cleared.</span>
-                </div>
-            `;
-        }
-        
-        toggleTheme() {
-            const body = document.body;
-            const isDark = !body.classList.contains('light-theme');
-            
-            if (isDark) {
-                body.classList.add('light-theme');
-                this.elements.themeToggle.innerHTML = '<i class="fas fa-sun"></i>';
-                localStorage.setItem('theme', 'light');
-            } else {
-                body.classList.remove('light-theme');
-                this.elements.themeToggle.innerHTML = '<i class="fas fa-moon"></i>';
-                localStorage.setItem('theme', 'dark');
-            }
-        }
-        
-        loadTheme() {
-            const savedTheme = localStorage.getItem('theme');
-            if (savedTheme === 'light') {
-                document.body.classList.add('light-theme');
-                this.elements.themeToggle.innerHTML = '<i class="fas fa-sun"></i>';
-            }
-        }
-        
-        showToast(message, type = 'info') {
-            this.elements.toast.textContent = message;
-            this.elements.toast.className = `toast ${type} show`;
-            
-            setTimeout(() => {
-                this.elements.toast.classList.remove('show');
-            }, 3000);
-        }
-    }
-    
-    document.addEventListener('DOMContentLoaded', () => {
-        window.app = new VisionSpeakApp();
-    });
-    </script>
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
 </body>
 </html>
