@@ -7,6 +7,7 @@ class VisionSpeakApp {
         // State
         this.isDetecting = false;
         this.isMuted = false;
+        this.currentMode = 'live';
         this.videoUpdateInterval = null;
         this.statsUpdateInterval = null;
         this.frameCount = 0;
@@ -14,7 +15,13 @@ class VisionSpeakApp {
         
         // DOM Elements
         this.elements = {
-            // Video
+            // Mode toggle
+            liveModeBtn: document.getElementById('liveModeBtn'),
+            uploadModeBtn: document.getElementById('uploadModeBtn'),
+            liveMode: document.getElementById('liveMode'),
+            uploadMode: document.getElementById('uploadMode'),
+            
+            // Video (Live Mode)
             videoFeed: document.getElementById('videoFeed'),
             videoPlaceholder: document.getElementById('videoPlaceholder'),
             videoContainer: document.getElementById('videoContainer'),
@@ -31,6 +38,17 @@ class VisionSpeakApp {
             muteBtn: document.getElementById('muteBtn'),
             snapshotBtn: document.getElementById('snapshotBtn'),
             forceSpeakBtn: document.getElementById('forceSpeakBtn'),
+            
+            // Upload
+            uploadDropzone: document.getElementById('uploadDropzone'),
+            fileInput: document.getElementById('fileInput'),
+            uploadProgress: document.getElementById('uploadProgress'),
+            progressFill: document.getElementById('progressFill'),
+            progressText: document.getElementById('progressText'),
+            uploadResult: document.getElementById('uploadResult'),
+            resultImage: document.getElementById('resultImage'),
+            resultVideo: document.getElementById('resultVideo'),
+            uploadAnotherBtn: document.getElementById('uploadAnotherBtn'),
             
             // Settings
             confidenceSlider: document.getElementById('confidenceSlider'),
@@ -62,15 +80,43 @@ class VisionSpeakApp {
     init() {
         this.setupEventListeners();
         this.loadTheme();
-        this.log('System ready. Click "Start Detection" to begin.', 'welcome');
+        this.log('System ready. Select Live Camera or Upload Media.', 'welcome');
     }
     
     setupEventListeners() {
+        // Mode toggle
+        this.elements.liveModeBtn.addEventListener('click', () => this.switchMode('live'));
+        this.elements.uploadModeBtn.addEventListener('click', () => this.switchMode('upload'));
+        
         // Control buttons
         this.elements.startStopBtn.addEventListener('click', () => this.toggleDetection());
         this.elements.muteBtn.addEventListener('click', () => this.toggleMute());
         this.elements.snapshotBtn.addEventListener('click', () => this.takeSnapshot());
         this.elements.forceSpeakBtn.addEventListener('click', () => this.forceSpeak());
+        
+        // Upload
+        this.elements.uploadDropzone.addEventListener('click', () => this.elements.fileInput.click());
+        this.elements.fileInput.addEventListener('change', (e) => this.handleFileSelect(e));
+        this.elements.uploadAnotherBtn.addEventListener('click', () => this.resetUpload());
+        
+        // Drag and drop
+        this.elements.uploadDropzone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            this.elements.uploadDropzone.classList.add('drag-over');
+        });
+        
+        this.elements.uploadDropzone.addEventListener('dragleave', () => {
+            this.elements.uploadDropzone.classList.remove('drag-over');
+        });
+        
+        this.elements.uploadDropzone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            this.elements.uploadDropzone.classList.remove('drag-over');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                this.handleFileUpload(files[0]);
+            }
+        });
         
         // Settings
         this.elements.confidenceSlider.addEventListener('input', (e) => this.updateConfidence(e.target.value));
@@ -86,7 +132,34 @@ class VisionSpeakApp {
     }
     
     // ========================================
-    // Detection Control
+    // Mode Switching
+    // ========================================
+    
+    switchMode(mode) {
+        // Stop detection if switching from live mode
+        if (this.currentMode === 'live' && this.isDetecting) {
+            this.stopDetection();
+        }
+        
+        this.currentMode = mode;
+        
+        if (mode === 'live') {
+            this.elements.liveModeBtn.classList.add('active');
+            this.elements.uploadModeBtn.classList.remove('active');
+            this.elements.liveMode.classList.add('active');
+            this.elements.uploadMode.classList.remove('active');
+            this.log('Switched to Live Camera mode', 'info');
+        } else {
+            this.elements.liveModeBtn.classList.remove('active');
+            this.elements.uploadModeBtn.classList.add('active');
+            this.elements.liveMode.classList.remove('active');
+            this.elements.uploadMode.classList.add('active');
+            this.log('Switched to Upload Media mode', 'info');
+        }
+    }
+    
+    // ========================================
+    // Detection Control (Live Mode)
     // ========================================
     
     async toggleDetection() {
@@ -99,7 +172,7 @@ class VisionSpeakApp {
     
     async startDetection() {
         try {
-            this.log('Starting detection system...', 'info');
+            this.log('Starting live detection...', 'info');
             
             const response = await fetch('/api/start', { method: 'POST' });
             const data = await response.json();
@@ -109,7 +182,7 @@ class VisionSpeakApp {
                 this.updateUIState(true);
                 this.startVideoFeed();
                 this.startStatsUpdate();
-                this.log('Detection started successfully!', 'success');
+                this.log('Live detection started!', 'success');
                 this.showToast('Detection started', 'success');
             } else {
                 throw new Error(data.message || 'Failed to start detection');
@@ -123,7 +196,7 @@ class VisionSpeakApp {
     
     async stopDetection() {
         try {
-            this.log('Stopping detection system...', 'info');
+            this.log('Stopping detection...', 'info');
             
             const response = await fetch('/api/stop', { method: 'POST' });
             const data = await response.json();
@@ -142,7 +215,6 @@ class VisionSpeakApp {
     }
     
     updateUIState(isActive) {
-        // Update buttons
         if (isActive) {
             this.elements.startStopBtn.classList.add('active');
             this.elements.startStopBtn.innerHTML = '<i class="fas fa-stop"></i><span>Stop Detection</span>';
@@ -155,6 +227,10 @@ class VisionSpeakApp {
             this.elements.volumeSlider.disabled = false;
             this.elements.rateSlider.disabled = false;
             this.elements.voiceSelect.disabled = false;
+            
+            this.elements.videoContainer.classList.add('active');
+            this.elements.liveBadge.classList.add('active');
+            this.elements.liveBadge.innerHTML = '<span class="pulse-dot"></span><span>LIVE</span>';
         } else {
             this.elements.startStopBtn.classList.remove('active');
             this.elements.startStopBtn.innerHTML = '<i class="fas fa-play"></i><span>Start Detection</span>';
@@ -167,14 +243,7 @@ class VisionSpeakApp {
             this.elements.volumeSlider.disabled = true;
             this.elements.rateSlider.disabled = true;
             this.elements.voiceSelect.disabled = true;
-        }
-        
-        // Update video container
-        if (isActive) {
-            this.elements.videoContainer.classList.add('active');
-            this.elements.liveBadge.classList.add('active');
-            this.elements.liveBadge.innerHTML = '<span class="pulse-dot"></span><span>LIVE</span>';
-        } else {
+            
             this.elements.videoContainer.classList.remove('active');
             this.elements.liveBadge.classList.remove('active');
             this.elements.liveBadge.innerHTML = '<span class="pulse-dot"></span><span>STANDBY</span>';
@@ -190,7 +259,6 @@ class VisionSpeakApp {
         this.elements.videoFeed.classList.add('active');
         this.elements.videoPlaceholder.classList.add('hidden');
         
-        // Update frame counter for FPS calculation
         this.frameCount = 0;
         this.lastFrameTime = Date.now();
         
@@ -204,7 +272,6 @@ class VisionSpeakApp {
         this.elements.videoFeed.classList.remove('active');
         this.elements.videoPlaceholder.classList.remove('hidden');
         
-        // Reset stats
         this.elements.objectCount.textContent = '0 Objects';
         this.elements.personCount.textContent = '0';
         this.elements.otherCount.textContent = '0';
@@ -232,11 +299,9 @@ class VisionSpeakApp {
             const data = await response.json();
             
             if (data.running) {
-                // Update object counts
                 const totalCount = data.object_count || 0;
                 this.elements.objectCount.textContent = `${totalCount} Object${totalCount !== 1 ? 's' : ''}`;
                 
-                // Count persons and others
                 const objects = data.objects || [];
                 const personCount = objects.filter(obj => obj.name === 'person').length;
                 const otherCount = totalCount - personCount;
@@ -244,7 +309,6 @@ class VisionSpeakApp {
                 this.elements.personCount.textContent = personCount;
                 this.elements.otherCount.textContent = otherCount;
                 
-                // Calculate FPS
                 const now = Date.now();
                 const elapsed = (now - this.lastFrameTime) / 1000;
                 if (elapsed > 0) {
@@ -254,8 +318,7 @@ class VisionSpeakApp {
                     this.lastFrameTime = now;
                 }
                 
-                // Log detections
-                if (objects.length > 0 && Math.random() < 0.1) { // Log 10% of the time to avoid spam
+                if (objects.length > 0 && Math.random() < 0.05) {
                     const objectNames = objects.map(obj => obj.name).join(', ');
                     this.log(`Detected: ${objectNames}`, 'info');
                 }
@@ -329,6 +392,94 @@ class VisionSpeakApp {
     }
     
     // ========================================
+    // Upload Functionality
+    // ========================================
+    
+    handleFileSelect(event) {
+        const file = event.target.files[0];
+        if (file) {
+            this.handleFileUpload(file);
+        }
+    }
+    
+    async handleFileUpload(file) {
+        // Validate file type
+        const validTypes = ['image/jpeg', 'image/png', 'image/jpg', 'video/mp4', 'video/avi', 'video/quicktime'];
+        if (!validTypes.includes(file.type)) {
+            this.showToast('Invalid file type. Use JPG, PNG, MP4, AVI, or MOV.', 'error');
+            this.log('Invalid file type uploaded', 'error');
+            return;
+        }
+        
+        // Show progress
+        this.elements.uploadDropzone.style.display = 'none';
+        this.elements.uploadProgress.style.display = 'block';
+        this.elements.progressText.textContent = 'Uploading...';
+        
+        this.log(`Uploading ${file.name}...`, 'info');
+        
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            const response = await fetch('/api/upload', {
+                method: 'POST',
+                body: formData
+            });
+            
+            if (!response.ok) {
+                throw new Error('Upload failed');
+            }
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                this.elements.progressText.textContent = 'Processing complete!';
+                this.log(`Processing complete: ${data.filename}`, 'success');
+                
+                // Show result
+                setTimeout(() => {
+                    this.showUploadResult(data);
+                }, 500);
+                
+                this.showToast('Media processed successfully!', 'success');
+            } else {
+                throw new Error(data.error || 'Processing failed');
+            }
+            
+        } catch (error) {
+            console.error('Upload error:', error);
+            this.log(`Upload error: ${error.message}`, 'error');
+            this.showToast('Upload failed', 'error');
+            this.resetUpload();
+        }
+    }
+    
+    showUploadResult(data) {
+        this.elements.uploadProgress.style.display = 'none';
+        this.elements.uploadResult.style.display = 'block';
+        
+        if (data.file_type === 'image') {
+            this.elements.resultImage.src = data.url;
+            this.elements.resultImage.style.display = 'block';
+            this.elements.resultVideo.style.display = 'none';
+        } else {
+            this.elements.resultVideo.src = data.url;
+            this.elements.resultVideo.style.display = 'block';
+            this.elements.resultImage.style.display = 'none';
+        }
+    }
+    
+    resetUpload() {
+        this.elements.uploadDropzone.style.display = 'flex';
+        this.elements.uploadProgress.style.display = 'none';
+        this.elements.uploadResult.style.display = 'none';
+        this.elements.fileInput.value = '';
+        this.elements.progressFill.style.width = '0%';
+        this.log('Ready for new upload', 'info');
+    }
+    
+    // ========================================
     // Settings
     // ========================================
     
@@ -342,7 +493,7 @@ class VisionSpeakApp {
                 body: JSON.stringify({ threshold: parseFloat(value) / 100 })
             });
             
-            this.log(`Confidence threshold set to ${value}%`, 'info');
+            this.log(`Confidence threshold: ${value}%`, 'info');
         } catch (error) {
             console.error('Confidence update error:', error);
         }
@@ -350,19 +501,16 @@ class VisionSpeakApp {
     
     updateVolume(value) {
         this.elements.volumeValue.textContent = `${value}%`;
-        // Volume control would be handled by TTS engine on backend
-        this.log(`Volume set to ${value}%`, 'info');
+        this.log(`Volume: ${value}%`, 'info');
     }
     
     updateRate(value) {
         this.elements.rateValue.textContent = `${value} wpm`;
-        // Speech rate would be handled by TTS engine on backend
-        this.log(`Speech rate set to ${value} wpm`, 'info');
+        this.log(`Speech rate: ${value} wpm`, 'info');
     }
     
     updateVoice(value) {
-        this.log(`Voice changed to: ${value}`, 'info');
-        // Voice selection would be handled by TTS engine on backend
+        this.log(`Voice: ${value}`, 'info');
     }
     
     // ========================================
@@ -381,7 +529,6 @@ class VisionSpeakApp {
         this.elements.terminalBody.appendChild(line);
         this.elements.terminalBody.scrollTop = this.elements.terminalBody.scrollHeight;
         
-        // Limit log entries to 100
         while (this.elements.terminalBody.children.length > 100) {
             this.elements.terminalBody.removeChild(this.elements.terminalBody.firstChild);
         }
@@ -420,12 +567,12 @@ class VisionSpeakApp {
             body.classList.add('light-theme');
             this.elements.themeToggle.innerHTML = '<i class="fas fa-sun"></i>';
             localStorage.setItem('theme', 'light');
-            this.log('Switched to Light Mode', 'info');
+            this.log('Light mode enabled', 'info');
         } else {
             body.classList.remove('light-theme');
             this.elements.themeToggle.innerHTML = '<i class="fas fa-moon"></i>';
             localStorage.setItem('theme', 'dark');
-            this.log('Switched to Dark Mode', 'info');
+            this.log('Dark mode enabled', 'info');
         }
     }
     

@@ -147,7 +147,63 @@ body {
 }
 
 /* ========================================
-   Video Stage
+   Mode Toggle
+   ======================================== */
+
+.mode-toggle-section {
+    width: 100%;
+}
+
+.mode-toggle {
+    display: flex;
+    gap: 1rem;
+    background: var(--bg-secondary);
+    padding: 0.5rem;
+    border-radius: 16px;
+    border: 1px solid var(--border-color);
+}
+
+.mode-btn {
+    flex: 1;
+    padding: 1rem 1.5rem;
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 1rem;
+    font-weight: 600;
+    border-radius: 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    transition: all var(--transition-base);
+}
+
+.mode-btn:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+.mode-btn.active {
+    background: var(--accent-primary);
+    color: white;
+}
+
+.mode-btn i {
+    font-size: 1.25rem;
+}
+
+.mode-content {
+    display: none;
+}
+
+.mode-content.active {
+    display: block;
+}
+
+/* ========================================
+   Video Stage (Live Mode)
    ======================================== */
 
 .video-stage {
@@ -315,6 +371,143 @@ body {
     color: var(--text-secondary);
     text-transform: uppercase;
     letter-spacing: 0.5px;
+}
+
+/* ========================================
+   Upload Section
+   ======================================== */
+
+.upload-section {
+    width: 100%;
+}
+
+.upload-container {
+    background: var(--bg-secondary);
+    border: 2px solid var(--border-color);
+    border-radius: 20px;
+    padding: 2rem;
+    box-shadow: var(--shadow-lg);
+}
+
+.upload-dropzone {
+    width: 100%;
+    aspect-ratio: 16/9;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    background: var(--bg-tertiary);
+    border: 3px dashed var(--border-color);
+    border-radius: 16px;
+    cursor: pointer;
+    transition: all var(--transition-base);
+    padding: 2rem;
+}
+
+.upload-dropzone:hover {
+    border-color: var(--accent-primary);
+    background: var(--bg-hover);
+}
+
+.upload-dropzone.drag-over {
+    border-color: var(--accent-success);
+    background: rgba(16, 185, 129, 0.1);
+}
+
+.upload-dropzone i {
+    font-size: 4rem;
+    color: var(--accent-primary);
+    opacity: 0.7;
+}
+
+.upload-dropzone h3 {
+    font-size: 1.5rem;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.upload-dropzone p {
+    font-size: 1rem;
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+.upload-hint {
+    font-size: 0.875rem;
+    color: var(--text-tertiary);
+    margin-top: 0.5rem;
+}
+
+.upload-progress {
+    width: 100%;
+    padding: 2rem;
+    text-align: center;
+}
+
+.progress-bar {
+    width: 100%;
+    height: 8px;
+    background: var(--bg-tertiary);
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 1rem;
+}
+
+.progress-fill {
+    height: 100%;
+    background: var(--accent-primary);
+    border-radius: 10px;
+    transition: width 0.3s ease;
+    animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+    0% { background-position: -100% 0; }
+    100% { background-position: 100% 0; }
+}
+
+.upload-result {
+    width: 100%;
+}
+
+.result-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.result-header h3 {
+    font-size: 1.25rem;
+    color: var(--text-primary);
+}
+
+.btn-secondary {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: all var(--transition-base);
+}
+
+.btn-secondary:hover {
+    background: var(--bg-hover);
+    border-color: var(--border-hover);
+}
+
+.result-media img,
+.result-media video {
+    width: 100%;
+    border-radius: 12px;
+    box-shadow: var(--shadow-md);
 }
 
 /* ========================================
@@ -721,7 +914,8 @@ body {
         gap: 1.5rem;
     }
     
-    .video-container {
+    .video-container,
+    .upload-container {
         padding: 1rem;
     }
     
@@ -746,14 +940,20 @@ body {
         right: 1rem;
         left: 1rem;
     }
+    
+    .mode-toggle {
+        flex-direction: column;
+    }
 }
 
 @media (max-width: 480px) {
-    .video-placeholder i {
+    .video-placeholder i,
+    .upload-dropzone i {
         font-size: 3rem;
     }
     
-    .video-placeholder p {
+    .video-placeholder p,
+    .upload-dropzone h3 {
         font-size: 1rem;
     }
     

@@ -35,76 +35,128 @@
 
     <!-- Main Container -->
     <main class="main-container">
-        <!-- Video Stage -->
-        <section class="video-stage">
-            <div class="video-container" id="videoContainer">
-                <div class="video-header">
-                    <span class="live-badge" id="liveBadge">
-                        <span class="pulse-dot"></span>
-                        <span>STANDBY</span>
-                    </span>
-                    <span class="object-count" id="objectCount">0 Objects</span>
-                </div>
-                
-                <img id="videoFeed" class="video-feed" src="" alt="Video feed">
-                
-                <div class="video-placeholder" id="videoPlaceholder">
-                    <i class="fas fa-video-slash"></i>
-                    <p>Camera Inactive</p>
-                    <span class="placeholder-hint">Click "Start Detection" to begin</span>
-                </div>
-                
-                <!-- Detection Overlay Stats -->
-                <div class="detection-stats" id="detectionStats">
-                    <div class="stat-card">
-                        <i class="fas fa-users"></i>
-                        <div class="stat-info">
-                            <span class="stat-value" id="personCount">0</span>
-                            <span class="stat-label">Persons</span>
-                        </div>
-                    </div>
-                    <div class="stat-card">
-                        <i class="fas fa-cube"></i>
-                        <div class="stat-info">
-                            <span class="stat-value" id="otherCount">0</span>
-                            <span class="stat-label">Objects</span>
-                        </div>
-                    </div>
-                    <div class="stat-card">
-                        <i class="fas fa-gauge-high"></i>
-                        <div class="stat-info">
-                            <span class="stat-value" id="fpsCount">0</span>
-                            <span class="stat-label">FPS</span>
-                        </div>
-                    </div>
-                </div>
+        <!-- Mode Toggle -->
+        <section class="mode-toggle-section">
+            <div class="mode-toggle">
+                <button class="mode-btn active" id="liveModeBtn" data-mode="live">
+                    <i class="fas fa-video"></i>
+                    <span>Live Camera</span>
+                </button>
+                <button class="mode-btn" id="uploadModeBtn" data-mode="upload">
+                    <i class="fas fa-cloud-upload-alt"></i>
+                    <span>Upload Media</span>
+                </button>
             </div>
         </section>
 
-        <!-- Control Center -->
-        <section class="control-center">
-            <div class="control-group">
-                <button class="control-btn primary" id="startStopBtn" aria-label="Start detection">
-                    <i class="fas fa-play"></i>
-                    <span>Start Detection</span>
-                </button>
-                
-                <button class="control-btn" id="muteBtn" aria-label="Mute narration" disabled>
-                    <i class="fas fa-volume-up"></i>
-                    <span>Mute</span>
-                </button>
-                
-                <button class="control-btn" id="snapshotBtn" aria-label="Take snapshot" disabled>
-                    <i class="fas fa-camera"></i>
-                    <span>Snapshot</span>
-                </button>
-                
-                <button class="control-btn" id="forceSpeakBtn" aria-label="Force speak" disabled>
-                    <i class="fas fa-microphone"></i>
-                    <span>Speak Now</span>
-                </button>
-            </div>
-        </section>
+        <!-- Live Camera Mode -->
+        <div id="liveMode" class="mode-content active">
+            <!-- Video Stage -->
+            <section class="video-stage">
+                <div class="video-container" id="videoContainer">
+                    <div class="video-header">
+                        <span class="live-badge" id="liveBadge">
+                            <span class="pulse-dot"></span>
+                            <span>STANDBY</span>
+                        </span>
+                        <span class="object-count" id="objectCount">0 Objects</span>
+                    </div>
+                    
+                    <img id="videoFeed" class="video-feed" src="" alt="Video feed">
+                    
+                    <div class="video-placeholder" id="videoPlaceholder">
+                        <i class="fas fa-video-slash"></i>
+                        <p>Camera Inactive</p>
+                        <span class="placeholder-hint">Click "Start Detection" to begin</span>
+                    </div>
+                    
+                    <!-- Detection Stats -->
+                    <div class="detection-stats" id="detectionStats">
+                        <div class="stat-card">
+                            <i class="fas fa-users"></i>
+                            <div class="stat-info">
+                                <span class="stat-value" id="personCount">0</span>
+                                <span class="stat-label">Persons</span>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <i class="fas fa-cube"></i>
+                            <div class="stat-info">
+                                <span class="stat-value" id="otherCount">0</span>
+                                <span class="stat-label">Objects</span>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <i class="fas fa-gauge-high"></i>
+                            <div class="stat-info">
+                                <span class="stat-value" id="fpsCount">0</span>
+                                <span class="stat-label">FPS</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Control Center -->
+            <section class="control-center">
+                <div class="control-group">
+                    <button class="control-btn primary" id="startStopBtn" aria-label="Start detection">
+                        <i class="fas fa-play"></i>
+                        <span>Start Detection</span>
+                    </button>
+                    
+                    <button class="control-btn" id="muteBtn" aria-label="Mute narration" disabled>
+                        <i class="fas fa-volume-up"></i>
+                        <span>Mute</span>
+                    </button>
+                    
+                    <button class="control-btn" id="snapshotBtn" aria-label="Take snapshot" disabled>
+                        <i class="fas fa-camera"></i>
+                        <span>Snapshot</span>
+                    </button>
+                    
+                    <button class="control-btn" id="forceSpeakBtn" aria-label="Force speak" disabled>
+                        <i class="fas fa-microphone"></i>
+                        <span>Speak Now</span>
+                    </button>
+                </div>
+            </section>
+        </div>
+
+        <!-- Upload Media Mode -->
+        <div id="uploadMode" class="mode-content">
+            <section class="upload-section">
+                <div class="upload-container">
+                    <div class="upload-dropzone" id="uploadDropzone">
+                        <i class="fas fa-cloud-upload-alt"></i>
+                        <h3>Drop Image or Video Here</h3>
+                        <p>or click to browse</p>
+                        <span class="upload-hint">Supports: JPG, PNG, MP4, AVI, MOV</span>
+                        <input type="file" id="fileInput" accept="image/*,video/*" hidden>
+                    </div>
+                    
+                    <div class="upload-progress" id="uploadProgress" style="display: none;">
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progressFill"></div>
+                        </div>
+                        <p id="progressText">Processing...</p>
+                    </div>
+                    
+                    <div class="upload-result" id="uploadResult" style="display: none;">
+                        <div class="result-header">
+                            <h3>Processed Result</h3>
+                            <button class="btn-secondary" id="uploadAnotherBtn">
+                                <i class="fas fa-upload"></i> Upload Another
+                            </button>
+                        </div>
+                        <div class="result-media">
+                            <img id="resultImage" style="display: none;" alt="Processed result">
+                            <video id="resultVideo" controls style="display: none;"></video>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
 
         <!-- Settings Panel -->
         <section class="settings-panel">
@@ -166,7 +218,7 @@
                     <select id="voiceSelect" class="select-dropdown" disabled>
                         <option value="default">Default Voice</option>
                         <option value="male">Male Voice</option>
-                        <option value="female">Female Voice</option>
+                        <option value="female" selected>Female Voice</option>
                     </select>
                 </div>
 
@@ -208,7 +260,7 @@
             <div class="terminal-body" id="terminalBody">
                 <div class="terminal-line welcome">
                     <span class="timestamp">[--:--:--]</span>
-                    <span class="message">VisionSpeak initialized. Ready to start detection.</span>
+                    <span class="message">VisionSpeak initialized. Select Live Camera or Upload Media.</span>
                 </div>
             </div>
         </section>
